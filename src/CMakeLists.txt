@@ -3,6 +3,6 @@
 
 FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
 
-idf_component_register(SRCS "main.c" "motor_control.c"
+idf_component_register(SRCS "main.c" "motor_control.c" "ultrasonic.c"
                     INCLUDE_DIRS "."
                     REQUIRES driver)

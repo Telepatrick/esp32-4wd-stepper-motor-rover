@@ -32,7 +32,7 @@ static bool IRAM_ATTR timer_r_callback(gptimer_handle_t timer, const gptimer_ala
     return false;
 }
 
-void setup_motor_system(void)
+void init_motor_system(void)
 {
     gpio_config_t io_conf = {
         .intr_type = GPIO_INTR_DISABLE,
@@ -80,6 +80,38 @@ void setup_motor_system(void)
     gptimer_set_alarm_action(gptimer_r, &alarm_config);
 }
 
+void turn_left(void) {
+    motor_on();
+    gpio_set_level(DIR_L, 0);
+    gpio_set_level(DIR_R, 0);
+    
+    if (!timer_volume_l) {
+        gptimer_start(gptimer_l);
+        timer_volume_l = true;
+    }
+
+    if (!timer_volume_r) {
+        gptimer_start(gptimer_r);
+        timer_volume_r = true;
+    }
+}
+
+void turn_right(void) {
+    motor_on();
+    gpio_set_level(DIR_L, 1);
+    gpio_set_level(DIR_R, 1);
+
+    if (!timer_volume_l) {
+        gptimer_start(gptimer_l);
+        timer_volume_l = true;
+    }
+
+    if (!timer_volume_r) {
+        gptimer_start(gptimer_r);
+        timer_volume_r = true;
+    }
+}
+
 void motor_on(void)
 {
     gpio_set_level(STEPER_EN, 0);
@@ -100,6 +132,7 @@ void forward(void)
         gptimer_start(gptimer_l); 
         timer_volume_l = true; 
     }
+
     if (!timer_volume_r) { 
         gptimer_start(gptimer_r); 
         timer_volume_r = true; 
@@ -112,9 +145,11 @@ void stop_rover(void)
         gptimer_stop(gptimer_l);
         timer_volume_l = false;
     }
+
     if (timer_volume_r) {
         gptimer_stop(gptimer_r);
         timer_volume_r = false;
     }
+    
     motor_off();
 }
