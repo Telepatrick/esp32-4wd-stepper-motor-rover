@@ -1,7 +1,8 @@
 #include "ultrasonic.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
+#include "esp_rom_sys.h"
+#include "soc/gpio_reg.h"
 
 #define US_TRIG_PIN GPIO_NUM_12
 #define US_ECHO_LEFT GPIO_NUM_13
@@ -9,7 +10,8 @@
 #define US_ECHO_RIGHT_CENTER GPIO_NUM_27
 #define US_ECHO_RIGHT GPIO_NUM_26
 
-void init_ultrasonic_sensors(void) {
+void init_ultrasonic_sensors(void)
+{
     gpio_config_t trig_conf = {
         .intr_type = GPIO_INTR_DISABLE,
         .mode = GPIO_MODE_OUTPUT,
@@ -25,58 +27,73 @@ void init_ultrasonic_sensors(void) {
         .mode = GPIO_MODE_INPUT,
         .pin_bit_mask = (1ULL << US_ECHO_LEFT) | (1ULL << US_ECHO_LEFT_CENTER) |
                         (1ULL << US_ECHO_RIGHT_CENTER) | (1ULL << US_ECHO_RIGHT),
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .pull_up_en = GPIO_PULLUP_DISABLE
     };
     gpio_config(&echo_conf);
 }
 
-void read_distances(float distances[4]) {
+void read_distances(float distances[4])
+{
+    typedef struct {
+        uint32_t start_time;
+        uint32_t stop_time;
+        bool start_flag;
+        bool stop_flag;
+    } sonar_state_t;
+
+    sonar_state_t states[4];
+    
+    uint32_t sonar_masks[4] = {
+        (1U << US_ECHO_LEFT),
+        (1U << US_ECHO_LEFT_CENTER),
+        (1U << US_ECHO_RIGHT_CENTER),
+        (1U << US_ECHO_RIGHT)
+    };
+
+    for (int i = 0; i < 4; i++) {
+        states[i].start_time = 0;
+        states[i].stop_time = 0;
+        states[i].start_flag = false;
+        states[i].stop_flag = false;
+        distances[i] = 400.0f;
+    }
+
     gpio_set_level(US_TRIG_PIN, 1);
     esp_rom_delay_us(10);
     gpio_set_level(US_TRIG_PIN, 0);
 
-    gpio_num_t echo_pins[4] = {US_ECHO_LEFT, US_ECHO_LEFT_CENTER, US_ECHO_RIGHT_CENTER, US_ECHO_RIGHT};
-    int64_t start_times[4] = {0};
-    int64_t end_times[4] = {0};
-    bool measured[4] = {false, false, false, false};
+    uint32_t start_loop_time = (uint32_t)esp_timer_get_time();
+    uint32_t timeout_us = 30000;
+    uint32_t end_time_limit = start_loop_time + timeout_us;
+    int sensors_closed = 0;
 
-    int64_t timeout_timer = esp_timer_get_time();
+    while (((uint32_t)esp_timer_get_time() < end_time_limit) && (sensors_closed < 4)) {
+        uint32_t current_time = (uint32_t)esp_timer_get_time();
+        uint32_t reg_in = REG_READ(GPIO_IN_REG);
 
-    while (esp_timer_get_time() - timeout_timer < 30000) {
-        bool all_started = true;
         for (int i = 0; i < 4; i++) {
-            if (!start_times[i]) {
-                if (gpio_get_level(echo_pins[i]) == 1) {
-                    start_times[i] = esp_timer_get_time();
+            if (!states[i].stop_flag) {
+                if (!states[i].start_flag) {
+                    if ((reg_in & sonar_masks[i]) != 0) {
+                        states[i].start_time = current_time;
+                        states[i].start_flag = true;
+                    }
                 } else {
-                    all_started = false;
+                    if ((reg_in & sonar_masks[i]) == 0) {
+                        states[i].stop_time = current_time;
+                        states[i].stop_flag = true;
+                        sensors_closed++;
+                    }
                 }
             }
         }
-        if (all_started) break;
-    }
-
-    timeout_timer = esp_timer_get_time();
-    while (esp_timer_get_time() - timeout_timer < 30000) {
-        bool all_finished = true;
-        for (int i = 0; i < 4; i++) {
-            if (start_times[i] && !measured[i]) {
-                if (gpio_get_level(echo_pins[i]) == 0) {
-                    end_times[i] = esp_timer_get_time();
-                    measured[i] = true;
-                } else {
-                    all_finished = false;
-                }
-            }
-        }
-        if (all_finished) break;
     }
 
     for (int i = 0; i < 4; i++) {
-        if (measured[i] && end_times[i] > start_times[i]) {
-            uint32_t duration = (uint32_t)(end_times[i] - start_times[i]);
-            distances[i] = (float)duration / 58.0f;
+        if (states[i].stop_flag && states[i].stop_time > states[i].start_time) {
+            uint32_t pulse_time = states[i].stop_time - states[i].start_time;
+            distances[i] = (float)pulse_time * 0.017f;
         } else {
             distances[i] = 400.0f;
         }
