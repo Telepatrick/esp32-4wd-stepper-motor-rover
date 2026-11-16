@@ -5,10 +5,10 @@
 #include "soc/gpio_reg.h"
 
 #define US_TRIG_PIN GPIO_NUM_12
-#define US_ECHO_LEFT GPIO_NUM_13
-#define US_ECHO_LEFT_CENTER GPIO_NUM_14
-#define US_ECHO_RIGHT_CENTER GPIO_NUM_27
-#define US_ECHO_RIGHT GPIO_NUM_26
+#define US_ECHO_LEFT GPIO_NUM_27
+#define US_ECHO_LEFT_CENTER GPIO_NUM_13
+#define US_ECHO_RIGHT_CENTER GPIO_NUM_26
+#define US_ECHO_RIGHT GPIO_NUM_14
 
 void init_ultrasonic_sensors(void)
 {

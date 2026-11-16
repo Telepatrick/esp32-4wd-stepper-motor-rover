@@ -4,9 +4,9 @@
 #include "esp_attr.h"
 
 #define STEP_L GPIO_NUM_18
-#define DIR_L GPIO_NUM_5
-#define STEP_R GPIO_NUM_23
-#define DIR_R GPIO_NUM_22
+#define DIR_L GPIO_NUM_19
+#define STEP_R GPIO_NUM_22
+#define DIR_R GPIO_NUM_23
 #define STEPER_EN GPIO_NUM_4
 
 static bool step_l_level = false;
