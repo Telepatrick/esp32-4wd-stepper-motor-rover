@@ -2,6 +2,7 @@
 
 void init_motor_system(void);
 void forward(void);
+void backward(void);
 void turn_left(void);
 void turn_right(void);
 void motor_on(void);

@@ -139,6 +139,23 @@ void forward(void)
     }
 }
 
+void backward(void)
+{
+    motor_on();
+    gpio_set_level(DIR_L, 0);
+    gpio_set_level(DIR_R, 1);
+
+    if (!timer_volume_l) {
+        gptimer_start(gptimer_l);
+        timer_volume_l = true;
+    }
+
+    if (!timer_volume_r) {
+        gptimer_start(gptimer_r);
+        timer_volume_r = true;
+    }
+}
+
 void stop_rover(void)
 {
     if (timer_volume_l) {
